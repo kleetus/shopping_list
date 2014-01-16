@@ -3,8 +3,10 @@ package com.kleetus.shoppinglist;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ListActivity;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
+import android.util.Base64;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -12,16 +14,14 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 
+import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
-import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
-
-import org.json.JSONArray;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,11 +31,11 @@ import java.util.Map;
 public class MainActivity extends ListActivity {
     public RequestQueue queue;
     private Gson gson;
-
     private FrameLayout mainFrame;
     private View progress;
-
     public List<Integer> checkedItems;
+    public String username;
+    public String password;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,10 +46,25 @@ public class MainActivity extends ListActivity {
         mainFrame = (FrameLayout) MainActivity.this.findViewById(R.id.container);
         progress = (MainActivity.this.getLayoutInflater()).inflate(R.layout.progress, null);
         checkedItems = new ArrayList<Integer>();
-        getShoppingList();
-
+        getCreds();
     }
 
+    private void getCreds() {
+        final Dialog credsDialog = new Dialog(this);
+        credsDialog.setContentView(R.layout.auth);
+        credsDialog.setTitle("Auth");
+        Button submit = ((Button) credsDialog.findViewById(R.id.auth_submit));
+        submit.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                credsDialog.hide();
+                username = ((EditText) credsDialog.findViewById(R.id.username)).getText().toString();
+                password = ((EditText) credsDialog.findViewById(R.id.password)).getText().toString();
+                getShoppingList();
+            }
+        });
+        credsDialog.show();
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -168,15 +183,18 @@ public class MainActivity extends ListActivity {
     }
 
     private void getShoppingList() {
+        showProgress();
 
-        JsonArrayRequest request = new JsonArrayRequest(MainApplication.server + "list.json", new Response.Listener<JSONArray>() {
+        StringRequest request = new StringRequest(Request.Method.GET, MainApplication.server + "list.json", new Response.Listener<String>() {
             @Override
-            public void onResponse(JSONArray jsonArray) {
-                setAdapter(jsonArray.toString());
+            public void onResponse(String s) {
+                hideProgress();
+                setAdapter(s);
             }
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError volleyError) {
+                hideProgress();
             }
         }
         );
@@ -201,4 +219,30 @@ public class MainActivity extends ListActivity {
         }
     }
 
+
+    public final static class BasicAuthStringRequest extends StringRequest {
+        Context context;
+
+        public BasicAuthStringRequest(Context context, int method, String url, Response.Listener<String> listener, Response.ErrorListener errorListener) {
+            super(method, url, listener, errorListener);
+            this.context = context;
+        }
+
+
+        @Override
+        protected Map<String, String> getParams() throws AuthFailureError {
+            Map<String, String> params = new HashMap<String, String>();
+            params.put("grant_type", "client_credentials");
+            return params;
+        }
+
+        @Override
+        public Map<String, String> getHeaders() throws AuthFailureError {
+            Map<String, String> headers = new HashMap<String, String>();
+            String auth = "Basic "
+                    + Base64.encodeToString((((MainActivity) context).username + ":" + ((MainActivity) context).password).getBytes(), Base64.NO_WRAP);
+            headers.put("Authorization", auth);
+            return headers;
+        }
+    }
 }
