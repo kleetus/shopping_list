@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.util.Base64;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -46,13 +47,13 @@ public class MainActivity extends ListActivity {
         mainFrame = (FrameLayout) MainActivity.this.findViewById(R.id.container);
         progress = (MainActivity.this.getLayoutInflater()).inflate(R.layout.progress, null);
         checkedItems = new ArrayList<Integer>();
-        getCreds();
+        getCreds("username/pass.");
     }
 
-    private void getCreds() {
+    private void getCreds(String message) {
         final Dialog credsDialog = new Dialog(this);
         credsDialog.setContentView(R.layout.auth);
-        credsDialog.setTitle("Auth");
+        credsDialog.setTitle(message);
         Button submit = ((Button) credsDialog.findViewById(R.id.auth_submit));
         submit.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -185,7 +186,7 @@ public class MainActivity extends ListActivity {
     private void getShoppingList() {
         showProgress();
 
-        StringRequest request = new StringRequest(Request.Method.GET, MainApplication.server + "list.json", new Response.Listener<String>() {
+        StringRequest request = new BasicAuthStringRequest(this, Request.Method.GET, MainApplication.server + "list.json", new Response.Listener<String>() {
             @Override
             public void onResponse(String s) {
                 hideProgress();
@@ -195,6 +196,9 @@ public class MainActivity extends ListActivity {
             @Override
             public void onErrorResponse(VolleyError volleyError) {
                 hideProgress();
+                if(com.android.volley.AuthFailureError.class == volleyError.getClass()) {
+                    getCreds("bad username/pass");
+                }
             }
         }
         );

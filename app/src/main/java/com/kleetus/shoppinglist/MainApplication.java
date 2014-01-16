@@ -4,7 +4,7 @@ import android.app.Application;
 
 public class MainApplication extends Application {
 
-    public static final Boolean dev_mode = false;
+    public static final Boolean dev_mode = true;
     public static String server;
 
     @Override
