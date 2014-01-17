@@ -16,4 +16,17 @@
         android:showAsAction="never" />
 
 
+    <item
+        android:id="@+id/action_refresh"
+        android:title="@string/refresh"
+        android:orderInCategory="102"
+        android:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_check_all"
+        android:title="@string/check_all"
+        android:orderInCategory="103"
+        android:showAsAction="never" />
+
+
 </menu>

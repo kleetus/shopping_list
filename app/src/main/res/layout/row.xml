@@ -8,18 +8,19 @@
     <CheckBox
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/checked" />
+        android:id="@+id/checked"
+        android:layout_weight=".001"/>
 
     <TextView
-        android:layout_marginLeft="20dp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_weight=".7"
         android:id="@+id/item_label" />
 
     <TextView
-        android:layout_marginLeft="50dp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_weight=".199"
         android:id="@+id/quantity_label" />
 
 </LinearLayout>

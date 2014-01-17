@@ -7,13 +7,15 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.util.Base64;
-import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ListView;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
@@ -34,9 +36,9 @@ public class MainActivity extends ListActivity {
     private Gson gson;
     private FrameLayout mainFrame;
     private View progress;
-    public List<Integer> checkedItems;
     public String username;
     public String password;
+    public List<Integer> checkedItems;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,9 +47,9 @@ public class MainActivity extends ListActivity {
         queue = Volley.newRequestQueue(this);
         gson = new Gson();
         mainFrame = (FrameLayout) MainActivity.this.findViewById(R.id.container);
-        progress = (MainActivity.this.getLayoutInflater()).inflate(R.layout.progress, null);
         checkedItems = new ArrayList<Integer>();
-        getCreds("username/pass.");
+        progress = (MainActivity.this.getLayoutInflater()).inflate(R.layout.progress, null);
+        getCreds("username/pass");
     }
 
     private void getCreds(String message) {
@@ -82,11 +84,30 @@ public class MainActivity extends ListActivity {
         if (id == R.id.action_clear_checked) {
             clearCheckedList();
         }
+        if (id == R.id.action_refresh) {
+            refresh();
+        }
+        if (id == R.id.action_check_all) {
+            checkAll();
+        }
         return super.onOptionsItemSelected(item);
     }
 
+    private void checkAll() {
+        ListView list = (ListView) findViewById(android.R.id.list);
+        for (int i = 0; i < list.getCount(); i++) {
+            View layout = list.getChildAt(i);
+            CheckBox box = (CheckBox) layout.findViewById(R.id.checked);
+            box.setChecked(true);
+        }
+    }
+
+    private void refresh() {
+        getCheckedItems();
+        getShoppingList();
+    }
+
     private void clearCheckedList() {
-        //send confirmation to clear and then clear
         new AlertDialog.Builder(this)
                 .setMessage("Confirm that you want to clear the checked items?")
                 .setCancelable(true)
@@ -101,12 +122,13 @@ public class MainActivity extends ListActivity {
     }
 
     private void clear() {
+        getCheckedItems();
         if (checkedItems.size() < 1) {
             return;
         }
         showProgress();
 
-        StringRequest request = new StringRequest(Request.Method.POST, MainApplication.server + "list/clear.json", new Response.Listener<String>() {
+        StringRequest request = new BasicAuthStringRequest(this, Request.Method.POST, MainApplication.server + "list/clear.json", new Response.Listener<String>() {
             @Override
             public void onResponse(String s) {
                 checkedItems.clear();
@@ -117,6 +139,7 @@ public class MainActivity extends ListActivity {
             @Override
             public void onErrorResponse(VolleyError volleyError) {
                 hideProgress();
+                reauthIfNeeded(volleyError);
             }
         }
         ) {
@@ -126,7 +149,6 @@ public class MainActivity extends ListActivity {
                 params.put("items", gson.toJson(checkedItems));
                 return params;
             }
-
         };
         queue.add(request);
     }
@@ -156,7 +178,15 @@ public class MainActivity extends ListActivity {
 
     private void add(final String item_name, final String quantity, final Dialog addDialog) {
         showProgress();
-        StringRequest request = new StringRequest(Request.Method.POST, MainApplication.server
+        getCheckedItems();
+        int q = 1;
+        try {
+            q = Integer.parseInt(quantity);
+        } catch (NumberFormatException e) {
+        }
+        final int i = q;
+
+        StringRequest request = new BasicAuthStringRequest(this, Request.Method.POST, MainApplication.server
                 + "/list/item.json", new Response.Listener<String>() {
 
             @Override
@@ -168,6 +198,7 @@ public class MainActivity extends ListActivity {
             @Override
             public void onErrorResponse(VolleyError volleyError) {
                 hideProgress();
+                reauthIfNeeded(volleyError);
             }
         }
         ) {
@@ -175,7 +206,7 @@ public class MainActivity extends ListActivity {
             protected Map<String, String> getParams() {
                 Map<String, String> params = new HashMap<String, String>();
                 params.put("item", item_name);
-                params.put("quantity", quantity);
+                params.put("quantity", String.valueOf(i));
                 return params;
             }
         };
@@ -196,19 +227,48 @@ public class MainActivity extends ListActivity {
             @Override
             public void onErrorResponse(VolleyError volleyError) {
                 hideProgress();
-                if(com.android.volley.AuthFailureError.class == volleyError.getClass()) {
-                    getCreds("bad username/pass");
-                }
+                reauthIfNeeded(volleyError);
             }
         }
         );
         queue.add(request);
     }
 
+    private void reauthIfNeeded(VolleyError error) {
+        if (com.android.volley.AuthFailureError.class == error.getClass()) {
+            getCreds("bad username/pass");
+        }
+    }
+
     private void setAdapter(String response) {
         Item[] items = gson.fromJson(response, Item[].class);
-        ShoppingListAdapter adapter = new ShoppingListAdapter(this, R.layout.row, items);
-        setListAdapter(adapter);
+        View list = mainFrame.findViewById(android.R.id.list);
+        if (items.length < 1) {
+            list.setVisibility(View.GONE);
+            LayoutInflater inflater = getLayoutInflater();
+            View no_items = inflater.inflate(R.layout.empty_list, mainFrame, false);
+            mainFrame.addView(no_items);
+        } else {
+            View no_items = mainFrame.findViewById(R.id.empty);
+            if (null != no_items) {
+                mainFrame.removeView(no_items);
+            }
+            list.setVisibility(View.VISIBLE);
+            ShoppingListAdapter adapter = new ShoppingListAdapter(this, R.layout.row, items);
+            setListAdapter(adapter);
+        }
+
+    }
+
+    public void getCheckedItems() {
+        ListView list = (ListView) mainFrame.findViewById(android.R.id.list);
+        for (int i = 0; i < list.getCount(); i++) {
+            View v = list.getChildAt(i);
+            CheckBox box = (CheckBox) v.findViewById(R.id.checked);
+            if (box.isChecked()) {
+                checkedItems.add(Integer.valueOf(list.getItemAtPosition(i).toString()));
+            }
+        }
     }
 
 
@@ -219,12 +279,12 @@ public class MainActivity extends ListActivity {
         public int id;
 
         public String toString() {
-            return item + " - " + quantity;
+            return String.valueOf(id);
         }
     }
 
 
-    public final static class BasicAuthStringRequest extends StringRequest {
+    public static class BasicAuthStringRequest extends StringRequest {
         Context context;
 
         public BasicAuthStringRequest(Context context, int method, String url, Response.Listener<String> listener, Response.ErrorListener errorListener) {

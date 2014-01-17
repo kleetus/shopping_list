@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.CheckBox;
 import android.widget.TextView;
 
 import junit.framework.Assert;
@@ -37,22 +38,13 @@ public class ShoppingListAdapter extends ArrayAdapter<MainActivity.Item> {
 
         quanityLabel.setText(String.valueOf(objects[position].quantity));
 
-        handleCheckedClick(row, objects[position].id);
+        CheckBox box = (CheckBox)row.findViewById(R.id.checked);
+
+        if (((MainActivity) context).checkedItems.contains(objects[position].id)) {
+            box.setChecked(true);
+        }
 
         return row;
     }
 
-    private void handleCheckedClick(View row, final Integer id) {
-        row.findViewById(R.id.checked).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (((MainActivity) context).checkedItems.contains(id)) {
-                    ((MainActivity) context).checkedItems.remove(id);
-                } else {
-                    ((MainActivity) context).checkedItems.add(id);
-                }
-
-            }
-        });
-    }
 }

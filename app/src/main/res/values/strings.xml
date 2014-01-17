@@ -5,5 +5,7 @@
     <string name="action_add">Add</string>
     <string name="action_clear">Clear</string>
     <string name="action_clear_checked">Clear Checked</string>
+    <string name="refresh">Refresh</string>
+    <string name="check_all">Check All</string>
 
 </resources>
