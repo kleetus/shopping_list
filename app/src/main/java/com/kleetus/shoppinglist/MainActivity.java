@@ -16,6 +16,7 @@ import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ListView;
+import android.widget.Toast;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
@@ -31,7 +32,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class MainActivity extends ListActivity {
+import uk.co.senab.actionbarpulltorefresh.library.ActionBarPullToRefresh;
+import uk.co.senab.actionbarpulltorefresh.library.PullToRefreshLayout;
+import uk.co.senab.actionbarpulltorefresh.library.listeners.OnRefreshListener;
+
+public class MainActivity extends ListActivity implements OnRefreshListener {
     public RequestQueue queue;
     private Gson gson;
     private FrameLayout mainFrame;
@@ -39,6 +44,7 @@ public class MainActivity extends ListActivity {
     public String username;
     public String password;
     public List<Integer> checkedItems;
+    private PullToRefreshLayout mPullToRefreshLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,7 +55,12 @@ public class MainActivity extends ListActivity {
         mainFrame = (FrameLayout) MainActivity.this.findViewById(R.id.container);
         checkedItems = new ArrayList<Integer>();
         progress = (MainActivity.this.getLayoutInflater()).inflate(R.layout.progress, null);
-        getCreds("username/pass");
+        getCreds(getString(R.string.userpass));
+        mPullToRefreshLayout = (PullToRefreshLayout) findViewById(R.id.ptr_layout);
+        ActionBarPullToRefresh.from(this)
+                .allChildrenArePullable()
+                .listener(this)
+                .setup(mPullToRefreshLayout);
     }
 
     private void getCreds(String message) {
@@ -84,9 +95,6 @@ public class MainActivity extends ListActivity {
         if (id == R.id.action_clear_checked) {
             clearCheckedList();
         }
-        if (id == R.id.action_refresh) {
-            refresh();
-        }
         if (id == R.id.action_check_all) {
             checkAll();
         }
@@ -108,9 +116,15 @@ public class MainActivity extends ListActivity {
     }
 
     private void clearCheckedList() {
+        getCheckedItems();
+        if (checkedItems.size() < 1) {
+            Toast.makeText(this, "No items were selected.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
         new AlertDialog.Builder(this)
                 .setMessage("Confirm that you want to clear the checked items?")
-                .setCancelable(true)
+                .setCancelable(false)
                 .setNegativeButton("No", null)
                 .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
                     @Override
@@ -122,16 +136,10 @@ public class MainActivity extends ListActivity {
     }
 
     private void clear() {
-        getCheckedItems();
-        if (checkedItems.size() < 1) {
-            return;
-        }
         showProgress();
-
         StringRequest request = new BasicAuthStringRequest(this, Request.Method.POST, MainApplication.server + "list/clear.json", new Response.Listener<String>() {
             @Override
             public void onResponse(String s) {
-                checkedItems.clear();
                 setAdapter(s);
                 hideProgress();
             }
@@ -139,6 +147,7 @@ public class MainActivity extends ListActivity {
             @Override
             public void onErrorResponse(VolleyError volleyError) {
                 hideProgress();
+                setAdapter("[]");
                 reauthIfNeeded(volleyError);
             }
         }
@@ -170,13 +179,13 @@ public class MainActivity extends ListActivity {
             @Override
             public void onClick(View v) {
                 addDialog.hide();
-                add(((EditText) addDialog.findViewById(R.id.item_name)).getText().toString(), ((EditText) addDialog.findViewById(R.id.quantity)).getText().toString(), addDialog);
+                add(((EditText) addDialog.findViewById(R.id.item_name)).getText().toString(), ((EditText) addDialog.findViewById(R.id.quantity)).getText().toString());
             }
         });
         addDialog.show();
     }
 
-    private void add(final String item_name, final String quantity, final Dialog addDialog) {
+    private void add(final String item_name, final String quantity) {
         showProgress();
         getCheckedItems();
         int q = 1;
@@ -198,6 +207,7 @@ public class MainActivity extends ListActivity {
             @Override
             public void onErrorResponse(VolleyError volleyError) {
                 hideProgress();
+                setAdapter("[]");
                 reauthIfNeeded(volleyError);
             }
         }
@@ -227,6 +237,7 @@ public class MainActivity extends ListActivity {
             @Override
             public void onErrorResponse(VolleyError volleyError) {
                 hideProgress();
+                setAdapter("[]");
                 reauthIfNeeded(volleyError);
             }
         }
@@ -261,6 +272,7 @@ public class MainActivity extends ListActivity {
     }
 
     public void getCheckedItems() {
+        checkedItems.clear();
         ListView list = (ListView) mainFrame.findViewById(android.R.id.list);
         for (int i = 0; i < list.getCount(); i++) {
             View v = list.getChildAt(i);
@@ -271,6 +283,11 @@ public class MainActivity extends ListActivity {
         }
     }
 
+    @Override
+    public void onRefreshStarted(View view) {
+        refresh();
+        mPullToRefreshLayout.setRefreshComplete();
+    }
 
     public static class Item {
 

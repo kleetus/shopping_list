@@ -11,7 +11,7 @@ apply plugin: 'android'
 
 repositories {
     maven { url 'https://github.com/Goddchen/mvn-repo/raw/master/' }
-mavenCentral()
+    mavenCentral()
 }
 
 android {
@@ -21,6 +21,8 @@ android {
     dependencies {
         compile 'com.google.code.gson:gson:2.2.+'
         compile 'com.android:volley:1.0'
+        compile 'com.github.chrisbanes.actionbarpulltorefresh:library:+'
+        compile 'com.google.android.gms:play-services:4.0.30'
     }
 
     defaultConfig {
@@ -38,6 +40,4 @@ android {
 }
 
 dependencies {
-    compile 'com.google.code.gson:gson:2.2.+'
-    compile 'com.android:volley:1.0'
 }

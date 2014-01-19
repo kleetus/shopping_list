@@ -38,12 +38,11 @@ public class ShoppingListAdapter extends ArrayAdapter<MainActivity.Item> {
 
         quanityLabel.setText(String.valueOf(objects[position].quantity));
 
-        CheckBox box = (CheckBox)row.findViewById(R.id.checked);
+        CheckBox box = (CheckBox) row.findViewById(R.id.checked);
 
-        if (((MainActivity) context).checkedItems.contains(objects[position].id)) {
+        if (((MainActivity) context).checkedItems.contains(Integer.valueOf(objects[position].id))) {
             box.setChecked(true);
         }
-
         return row;
     }
 
