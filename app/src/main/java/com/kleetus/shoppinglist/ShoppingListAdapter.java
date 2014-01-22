@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import junit.framework.Assert;
 
@@ -63,6 +64,9 @@ public class ShoppingListAdapter extends ArrayAdapter<MainActivity.Item> {
 
     public void changeData(MainActivity.Item[] items) {
         objects = items;
+        if(objects.length<1) {
+            Toast.makeText(context, R.string.no_items, Toast.LENGTH_LONG).show();
+        }
         notifyDataSetChanged();
     }
 }
