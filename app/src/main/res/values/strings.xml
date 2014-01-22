@@ -9,5 +9,6 @@
     <string name="check_all">Check All</string>
     <string name="userpass">user/pass</string>
     <string name="network_problem">Could not reach backend, please check signal and try again.</string>
+    <string name="no_items">No Items</string>
 
 </resources>

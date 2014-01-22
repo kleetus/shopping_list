@@ -46,4 +46,23 @@ public class ShoppingListAdapter extends ArrayAdapter<MainActivity.Item> {
         return row;
     }
 
+    @Override
+    public int getCount() {
+        return objects.length;
+    }
+
+    @Override
+    public MainActivity.Item getItem(int position) {
+        return objects[position];
+    }
+
+    @Override
+    public long getItemId(int position) {
+        return position;
+    }
+
+    public void changeData(MainActivity.Item[] items) {
+        objects = items;
+        notifyDataSetChanged();
+    }
 }

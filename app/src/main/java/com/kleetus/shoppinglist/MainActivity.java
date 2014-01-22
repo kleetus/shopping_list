@@ -7,7 +7,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.util.Base64;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -45,6 +44,10 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     public String password;
     public List<Integer> checkedItems;
     private PullToRefreshLayout mPullToRefreshLayout;
+    private ShoppingListAdapter adapter;
+    private Item[] EMPTY = {};
+    private boolean isRefreshing;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,6 +60,9 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         progress = (MainActivity.this.getLayoutInflater()).inflate(R.layout.progress, null);
         getCreds(getString(R.string.userpass));
         mPullToRefreshLayout = (PullToRefreshLayout) findViewById(R.id.ptr_layout);
+        adapter = new ShoppingListAdapter(this, R.layout.row, EMPTY);
+        setListAdapter(adapter);
+
         ActionBarPullToRefresh.from(this)
                 .allChildrenArePullable()
                 .listener(this)
@@ -136,12 +142,18 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     }
 
     private void clear() {
+        if (isRefreshing) {
+            return;
+        }
+        isRefreshing = true;
+
         showProgress();
         StringRequest request = new BasicAuthStringRequest(this, Request.Method.POST, MainApplication.server + "list/clear.json", new Response.Listener<String>() {
             @Override
             public void onResponse(String s) {
                 setAdapter(s);
                 hideProgress();
+                isRefreshing = false;
             }
         }, new Response.ErrorListener() {
             @Override
@@ -151,6 +163,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
                 if (!reauthIfNeeded(volleyError)) {
                     showNetworkError();
                 }
+                isRefreshing = false;
             }
         }
         ) {
@@ -192,6 +205,11 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     }
 
     private void add(final String item_name, final String quantity) {
+        if (isRefreshing) {
+            return;
+        }
+        isRefreshing = true;
+
         showProgress();
         getCheckedItems();
         int q = 1;
@@ -208,6 +226,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             public void onResponse(String s) {
                 setAdapter(s);
                 hideProgress();
+                isRefreshing = false;
             }
         }, new Response.ErrorListener() {
             @Override
@@ -217,6 +236,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
                 if (!reauthIfNeeded(volleyError)) {
                     showNetworkError();
                 }
+                isRefreshing = false;
             }
         }
         ) {
@@ -233,6 +253,10 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     }
 
     private void getShoppingList() {
+        if (isRefreshing) {
+            return;
+        }
+        isRefreshing = true;
         showProgress();
 
         StringRequest request = new BasicAuthStringRequest(this, Request.Method.GET, MainApplication.server + "list.json", new Response.Listener<String>() {
@@ -240,6 +264,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             public void onResponse(String s) {
                 hideProgress();
                 setAdapter(s);
+                isRefreshing = false;
             }
         }, new Response.ErrorListener() {
             @Override
@@ -249,6 +274,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
                 if (!reauthIfNeeded(volleyError)) {
                     showNetworkError();
                 }
+                isRefreshing = false;
             }
         }
         );
@@ -265,22 +291,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
 
     private void setAdapter(String response) {
         Item[] items = gson.fromJson(response, Item[].class);
-        View list = mainFrame.findViewById(android.R.id.list);
-        if (items.length < 1) {
-            list.setVisibility(View.GONE);
-            LayoutInflater inflater = getLayoutInflater();
-            View no_items = inflater.inflate(R.layout.empty_list, mainFrame, false);
-            mainFrame.addView(no_items);
-        } else {
-            View no_items = mainFrame.findViewById(R.id.empty);
-            if (null != no_items) {
-                mainFrame.removeView(no_items);
-            }
-            list.setVisibility(View.VISIBLE);
-            ShoppingListAdapter adapter = new ShoppingListAdapter(this, R.layout.row, items);
-            setListAdapter(adapter);
-        }
-
+        adapter.changeData(items);
     }
 
     public void getCheckedItems() {
