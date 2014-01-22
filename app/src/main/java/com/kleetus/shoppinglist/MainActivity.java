@@ -148,7 +148,9 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             public void onErrorResponse(VolleyError volleyError) {
                 hideProgress();
                 setAdapter("[]");
-                reauthIfNeeded(volleyError);
+                if (!reauthIfNeeded(volleyError)) {
+                    showNetworkError();
+                }
             }
         }
         ) {
@@ -160,6 +162,10 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             }
         };
         queue.add(request);
+    }
+
+    private void showNetworkError() {
+        Toast.makeText(this, R.string.network_problem, Toast.LENGTH_LONG).show();
     }
 
     private void hideProgress() {
@@ -208,7 +214,9 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             public void onErrorResponse(VolleyError volleyError) {
                 hideProgress();
                 setAdapter("[]");
-                reauthIfNeeded(volleyError);
+                if (!reauthIfNeeded(volleyError)) {
+                    showNetworkError();
+                }
             }
         }
         ) {
@@ -238,17 +246,21 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             public void onErrorResponse(VolleyError volleyError) {
                 hideProgress();
                 setAdapter("[]");
-                reauthIfNeeded(volleyError);
+                if (!reauthIfNeeded(volleyError)) {
+                    showNetworkError();
+                }
             }
         }
         );
         queue.add(request);
     }
 
-    private void reauthIfNeeded(VolleyError error) {
+    private boolean reauthIfNeeded(VolleyError error) {
         if (com.android.volley.AuthFailureError.class == error.getClass()) {
             getCreds("bad username/pass");
+            return true;
         }
+        return false;
     }
 
     private void setAdapter(String response) {
