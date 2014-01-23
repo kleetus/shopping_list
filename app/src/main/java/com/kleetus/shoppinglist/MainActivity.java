@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.util.Base64;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -83,7 +84,44 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
                 getShoppingList();
             }
         });
+        Button createAccount = (Button) credsDialog.findViewById(R.id.new_account);
+        createAccount.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                credsDialog.hide();
+                launchNewAccountDialog();
+            }
+        });
         credsDialog.show();
+    }
+
+    private void launchNewAccountDialog() {
+        final Dialog newAccountDialog = new Dialog(this);
+        newAccountDialog.setContentView(R.layout.new_account);
+        newAccountDialog.setTitle(R.string.new_account);
+
+        Button back = (Button)newAccountDialog.findViewById(R.id.back);
+        back.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                newAccountDialog.hide();
+                getCreds(getString(R.string.userpass));
+            }
+        });
+
+        Button createAccount = (Button)newAccountDialog.findViewById(R.id.create_account);
+        createAccount.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                newAccount();
+            }
+        });
+
+        newAccountDialog.show();
+    }
+
+    private void newAccount() {
+        //check password and email address and send it in
     }
 
     @Override
@@ -104,7 +142,17 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         if (id == R.id.action_check_all) {
             checkAll();
         }
+        if (id == R.id.action_link_account) {
+            linkAccount();
+        }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void linkAccount() {
+        final Dialog linkAccountDialog = new Dialog(this);
+        linkAccountDialog.setContentView(R.layout.link_account);
+        linkAccountDialog.setTitle(R.string.link_account);
+        linkAccountDialog.show();
     }
 
     private void checkAll() {
@@ -283,7 +331,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
 
     private boolean reauthIfNeeded(VolleyError error) {
         if (com.android.volley.AuthFailureError.class == error.getClass()) {
-            getCreds("bad username/pass");
+            getCreds(getString(R.string.bad_userpass));
             return true;
         }
         return false;
@@ -322,7 +370,6 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             return String.valueOf(id);
         }
     }
-
 
     public static class BasicAuthStringRequest extends StringRequest {
         Context context;

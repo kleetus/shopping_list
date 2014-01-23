@@ -10,5 +10,12 @@
     <string name="userpass">user/pass</string>
     <string name="network_problem">Could not reach backend, please check signal and try again.</string>
     <string name="no_items">No Items</string>
+    <string name="new_account">Create Account</string>
+    <string name="email_address">email address</string>
+    <string name="password">password</string>
+    <string name="password_confirmation">confirmation</string>
+    <string name="link_account">Link Account</string>
+    <string name="back">back</string>
+    <string name="bad_userpass">bad username/pass</string>
 
 </resources>
