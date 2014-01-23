@@ -28,4 +28,11 @@
         android:orderInCategory="103"
         android:showAsAction="never" />
 
+    <item
+        android:id="@+id/action_logout"
+        android:title="@string/logout"
+        android:orderInCategory="104"
+        android:showAsAction="never" />
+
+
 </menu>

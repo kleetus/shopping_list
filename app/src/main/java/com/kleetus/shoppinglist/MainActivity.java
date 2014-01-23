@@ -7,7 +7,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.util.Base64;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -41,8 +40,8 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     private Gson gson;
     private FrameLayout mainFrame;
     private View progress;
-    public String username;
-    public String password;
+    private String username;
+    private String password;
     public List<Integer> checkedItems;
     private PullToRefreshLayout mPullToRefreshLayout;
     private ShoppingListAdapter adapter;
@@ -74,6 +73,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         final Dialog credsDialog = new Dialog(this);
         credsDialog.setContentView(R.layout.auth);
         credsDialog.setTitle(message);
+        credsDialog.setCancelable(false);
         Button submit = ((Button) credsDialog.findViewById(R.id.auth_submit));
         submit.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -99,8 +99,8 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         final Dialog newAccountDialog = new Dialog(this);
         newAccountDialog.setContentView(R.layout.new_account);
         newAccountDialog.setTitle(R.string.new_account);
-
-        Button back = (Button)newAccountDialog.findViewById(R.id.back);
+        newAccountDialog.setCancelable(false);
+        Button back = (Button) newAccountDialog.findViewById(R.id.back);
         back.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -109,7 +109,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             }
         });
 
-        Button createAccount = (Button)newAccountDialog.findViewById(R.id.create_account);
+        Button createAccount = (Button) newAccountDialog.findViewById(R.id.create_account);
         createAccount.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -145,12 +145,23 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         if (id == R.id.action_link_account) {
             linkAccount();
         }
+
+        if (id == R.id.action_logout) {
+            logout();
+        }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void logout() {
+        Toast.makeText(this, username + " " + getString(R.string.isLoggedOut), Toast.LENGTH_LONG).show();
+        username = null;
+        password = null;
     }
 
     private void linkAccount() {
         final Dialog linkAccountDialog = new Dialog(this);
         linkAccountDialog.setContentView(R.layout.link_account);
+        linkAccountDialog.setCancelable(false);
         linkAccountDialog.setTitle(R.string.link_account);
         linkAccountDialog.show();
     }
@@ -393,7 +404,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             String auth = "Basic "
                     + Base64.encodeToString((((MainActivity) context).username + ":" + ((MainActivity) context).password).getBytes(), Base64.NO_WRAP);
             headers.put("Authorization", auth);
-            return headers;
+                return headers;
         }
     }
 }

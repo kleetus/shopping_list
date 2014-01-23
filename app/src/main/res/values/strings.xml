@@ -17,5 +17,7 @@
     <string name="link_account">Link Account</string>
     <string name="back">back</string>
     <string name="bad_userpass">bad username/pass</string>
+    <string name="logout">Logout</string>
+    <string name="isLoggedOut">is logged out.</string>
 
 </resources>
