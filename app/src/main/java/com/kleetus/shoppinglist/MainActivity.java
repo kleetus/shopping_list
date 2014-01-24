@@ -7,7 +7,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.util.Base64;
+import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -44,7 +44,6 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     private FrameLayout mainFrame;
     private View progress;
     private String username;
-    private String password;
     public List<Integer> checkedItems;
     private PullToRefreshLayout mPullToRefreshLayout;
     private ShoppingListAdapter adapter;
@@ -70,6 +69,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         mPullToRefreshLayout = (PullToRefreshLayout) findViewById(R.id.ptr_layout);
         adapter = new ShoppingListAdapter(this, R.layout.row, EMPTY);
         setListAdapter(adapter);
+        preferences = PreferenceManager.getDefaultSharedPreferences(this);
 
         ActionBarPullToRefresh.from(this)
                 .allChildrenArePullable()
@@ -88,8 +88,8 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             public void onClick(View v) {
                 credsDialog.hide();
                 username = ((EditText) credsDialog.findViewById(R.id.username)).getText().toString();
-                password = ((EditText) credsDialog.findViewById(R.id.password)).getText().toString();
-                getShoppingList();
+                String password = ((EditText) credsDialog.findViewById(R.id.password)).getText().toString();
+                auth(username, password);
             }
         });
         Button createAccount = (Button) credsDialog.findViewById(R.id.new_account);
@@ -101,6 +101,37 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             }
         });
         credsDialog.show();
+    }
+
+    private void auth(final String u, final String p) {
+        StringRequest request = new ParamedStringRequest(this, Request.Method.POST, MainApplication.server +
+                "session", new Response.Listener<String>() {
+
+            @Override
+            public void onResponse(String s) {
+                //logged in
+                getShoppingList();
+            }
+
+        }, new Response.ErrorListener() {
+
+            @Override
+            public void onErrorResponse(VolleyError volleyError) {
+                //could not login
+
+            }
+
+        }
+        ) {
+            @Override
+            protected Map<String, String> getParams() {
+                Map<String, String> params = new HashMap<String, String>();
+                params.put("email", gson.toJson(u));
+                params.put("password", gson.toJson(p));
+                return params;
+            }
+        };
+
     }
 
     private void launchNewAccountDialog() {
@@ -153,7 +184,6 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         if (id == R.id.action_link_account) {
             linkAccount();
         }
-
         if (id == R.id.action_logout) {
             logout();
         }
@@ -162,8 +192,6 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
 
     private void logout() {
         Toast.makeText(this, username + " " + getString(R.string.isLoggedOut), Toast.LENGTH_LONG).show();
-        username = null;
-        password = null;
     }
 
     private void linkAccount() {
@@ -215,7 +243,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         isRefreshing = true;
 
         showProgress();
-        StringRequest request = new BasicAuthStringRequest(this, Request.Method.POST, MainApplication.server + "list/clear.json", new Response.Listener<String>() {
+        StringRequest request = new ParamedStringRequest(this, Request.Method.POST, MainApplication.server + "list/clear.json", new Response.Listener<String>() {
             @Override
             public void onResponse(String s) {
                 setAdapter(s);
@@ -286,7 +314,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         }
         final int i = q;
 
-        StringRequest request = new BasicAuthStringRequest(this, Request.Method.POST, MainApplication.server
+        StringRequest request = new ParamedStringRequest(this, Request.Method.POST, MainApplication.server
                 + "/list/item.json", new Response.Listener<String>() {
 
             @Override
@@ -326,7 +354,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         isRefreshing = true;
         showProgress();
 
-        StringRequest request = new BasicAuthStringRequest(this, Request.Method.GET, MainApplication.server + "list.json", new Response.Listener<String>() {
+        StringRequest request = new ParamedStringRequest(this, Request.Method.GET, MainApplication.server + "list.json", new Response.Listener<String>() {
             @Override
             public void onResponse(String s) {
                 hideProgress();
@@ -390,41 +418,6 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         }
     }
 
-    public static class BasicAuthStringRequest extends StringRequest {
-        Context context;
-
-
-        public BasicAuthStringRequest(Context context, int method, String url, Response.Listener<String> listener, Response.ErrorListener errorListener) {
-            super(method, url, listener, errorListener);
-            this.context = context;
-        }
-
-
-        @Override
-        protected Map<String, String> getParams() throws AuthFailureError {
-            return getParams();
-        }
-
-        @Override
-        protected Response<String> parseNetworkResponse(NetworkResponse response) {
-            ((MainActivity) context).saveSessionCookie(response.headers);
-            return super.parseNetworkResponse(response);
-        }
-
-        @Override
-        public Map<String, String> getHeaders() throws AuthFailureError {
-            Map<String, String> headers = super.getHeaders();
-
-            if (headers == null
-                    || headers.equals(Collections.emptyMap())) {
-                headers = new HashMap<String, String>();
-            }
-
-            ((MainActivity) context).addSessionCookie(headers);
-            return headers;
-        }
-    }
-
     private void addSessionCookie(Map<String, String> headers) {
         if (headers.containsKey(SET_COOKIE_KEY)
                 && headers.get(SET_COOKIE_KEY).startsWith(SESSION_COOKIE)) {
@@ -456,4 +449,40 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         }
 
     }
+
+    public static class ParamedStringRequest extends StringRequest {
+        Context context;
+
+
+        public ParamedStringRequest(Context context, int method, String url, Response.Listener<String> listener, Response.ErrorListener errorListener) {
+            super(method, url, listener, errorListener);
+            this.context = context;
+        }
+
+
+        @Override
+        protected Map<String, String> getParams() throws AuthFailureError {
+            return getParams();
+        }
+
+        @Override
+        protected Response<String> parseNetworkResponse(NetworkResponse response) {
+            ((MainActivity) context).saveSessionCookie(response.headers);
+            return super.parseNetworkResponse(response);
+        }
+
+        @Override
+        public Map<String, String> getHeaders() throws AuthFailureError {
+            Map<String, String> headers = super.getHeaders();
+
+            if (headers == null
+                    || headers.equals(Collections.emptyMap())) {
+                headers = new HashMap<String, String>();
+            }
+
+            ((MainActivity) context).addSessionCookie(headers);
+            return headers;
+        }
+    }
+
 }
