@@ -5,6 +5,7 @@ import android.app.Dialog;
 import android.app.ListActivity;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Base64;
 import android.view.Menu;
@@ -18,6 +19,7 @@ import android.widget.ListView;
 import android.widget.Toast;
 
 import com.android.volley.AuthFailureError;
+import com.android.volley.NetworkResponse;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
@@ -27,6 +29,7 @@ import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +50,11 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     private ShoppingListAdapter adapter;
     private Item[] EMPTY = {};
     private boolean isRefreshing;
+    private SharedPreferences preferences;
+
+    private static final String SET_COOKIE_KEY = "Set-Cookie";
+    private static final String COOKIE_KEY = "Cookie";
+    private static final String SESSION_COOKIE = "rack.session";
 
 
     @Override
@@ -385,6 +393,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     public static class BasicAuthStringRequest extends StringRequest {
         Context context;
 
+
         public BasicAuthStringRequest(Context context, int method, String url, Response.Listener<String> listener, Response.ErrorListener errorListener) {
             super(method, url, listener, errorListener);
             this.context = context;
@@ -393,18 +402,58 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
 
         @Override
         protected Map<String, String> getParams() throws AuthFailureError {
-            Map<String, String> params = new HashMap<String, String>();
-            params.put("grant_type", "client_credentials");
-            return params;
+            return getParams();
+        }
+
+        @Override
+        protected Response<String> parseNetworkResponse(NetworkResponse response) {
+            ((MainActivity) context).saveSessionCookie(response.headers);
+            return super.parseNetworkResponse(response);
         }
 
         @Override
         public Map<String, String> getHeaders() throws AuthFailureError {
-            Map<String, String> headers = new HashMap<String, String>();
-            String auth = "Basic "
-                    + Base64.encodeToString((((MainActivity) context).username + ":" + ((MainActivity) context).password).getBytes(), Base64.NO_WRAP);
-            headers.put("Authorization", auth);
-                return headers;
+            Map<String, String> headers = super.getHeaders();
+
+            if (headers == null
+                    || headers.equals(Collections.emptyMap())) {
+                headers = new HashMap<String, String>();
+            }
+
+            ((MainActivity) context).addSessionCookie(headers);
+            return headers;
         }
+    }
+
+    private void addSessionCookie(Map<String, String> headers) {
+        if (headers.containsKey(SET_COOKIE_KEY)
+                && headers.get(SET_COOKIE_KEY).startsWith(SESSION_COOKIE)) {
+            String cookie = headers.get(SET_COOKIE_KEY);
+            if (cookie.length() > 0) {
+                String[] splitCookie = cookie.split(";");
+                String[] splitSessionId = splitCookie[0].split("=");
+                cookie = splitSessionId[1];
+                SharedPreferences.Editor prefEditor = preferences.edit();
+                prefEditor.putString(SESSION_COOKIE, cookie);
+                prefEditor.commit();
+            }
+        }
+
+    }
+
+    private void saveSessionCookie(Map<String, String> headers) {
+        String sessionId = preferences.getString(SESSION_COOKIE, "");
+        if (sessionId.length() > 0) {
+            StringBuilder builder = new StringBuilder();
+            builder.append(SESSION_COOKIE);
+            builder.append("=");
+            builder.append(sessionId);
+            if (headers.containsKey(COOKIE_KEY)) {
+                builder.append("; ");
+                builder.append(headers.get(COOKIE_KEY));
+            }
+            headers.put(COOKIE_KEY, builder.toString());
+        }
+
     }
 }
