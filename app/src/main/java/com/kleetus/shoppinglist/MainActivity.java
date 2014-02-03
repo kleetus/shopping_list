@@ -8,6 +8,7 @@ import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -86,10 +87,9 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         submit.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                credsDialog.hide();
                 username = ((EditText) credsDialog.findViewById(R.id.username)).getText().toString();
                 String password = ((EditText) credsDialog.findViewById(R.id.password)).getText().toString();
-                auth(username, password);
+                auth(username, password, credsDialog);
             }
         });
         Button createAccount = (Button) credsDialog.findViewById(R.id.new_account);
@@ -103,35 +103,36 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         credsDialog.show();
     }
 
-    private void auth(final String u, final String p) {
-        StringRequest request = new ParamedStringRequest(this, Request.Method.POST, MainApplication.server +
-                "session", new Response.Listener<String>() {
-
+    private void auth(final String u, final String p, final Dialog dialog) {
+        StringRequest request = new ParamedStringRequest(this, Request.Method.POST, MainApplication.server + "session", new Response.Listener<String>() {
             @Override
             public void onResponse(String s) {
-                //logged in
-                getShoppingList();
+                dialog.hide();
+                Log.d("MainActivity", "Logged in successfully");
             }
-
         }, new Response.ErrorListener() {
-
             @Override
             public void onErrorResponse(VolleyError volleyError) {
-                //could not login
-
+                dialog.setTitle("re-enter user/pass");
             }
-
         }
         ) {
             @Override
             protected Map<String, String> getParams() {
                 Map<String, String> params = new HashMap<String, String>();
-                params.put("email", gson.toJson(u));
-                params.put("password", gson.toJson(p));
+                params.put("email", u);
+                params.put("password", p);
                 return params;
             }
-        };
 
+            @Override
+            protected Response<String> parseNetworkResponse(NetworkResponse response) { //incoming from server here, set cookie in user prefs here
+                saveSessionCookie(response.headers);
+                return super.parseNetworkResponse(response);
+            }
+
+        };
+        queue.add(request);
     }
 
     private void launchNewAccountDialog() {
@@ -255,9 +256,6 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             public void onErrorResponse(VolleyError volleyError) {
                 hideProgress();
                 setAdapter("[]");
-                if (!reauthIfNeeded(volleyError)) {
-                    showNetworkError();
-                }
                 isRefreshing = false;
             }
         }
@@ -328,9 +326,6 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             public void onErrorResponse(VolleyError volleyError) {
                 hideProgress();
                 setAdapter("[]");
-                if (!reauthIfNeeded(volleyError)) {
-                    showNetworkError();
-                }
                 isRefreshing = false;
             }
         }
@@ -366,22 +361,11 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             public void onErrorResponse(VolleyError volleyError) {
                 hideProgress();
                 setAdapter("[]");
-                if (!reauthIfNeeded(volleyError)) {
-                    showNetworkError();
-                }
                 isRefreshing = false;
             }
         }
         );
         queue.add(request);
-    }
-
-    private boolean reauthIfNeeded(VolleyError error) {
-        if (com.android.volley.AuthFailureError.class == error.getClass()) {
-            getCreds(getString(R.string.bad_userpass));
-            return true;
-        }
-        return false;
     }
 
     private void setAdapter(String response) {
@@ -418,7 +402,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         }
     }
 
-    private void addSessionCookie(Map<String, String> headers) {
+    private void saveSessionCookie(Map<String, String> headers) {
         if (headers.containsKey(SET_COOKIE_KEY)
                 && headers.get(SET_COOKIE_KEY).startsWith(SESSION_COOKIE)) {
             String cookie = headers.get(SET_COOKIE_KEY);
@@ -431,10 +415,9 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
                 prefEditor.commit();
             }
         }
-
     }
 
-    private void saveSessionCookie(Map<String, String> headers) {
+    private void addSessionCookie(Map<String, String> headers) {
         String sessionId = preferences.getString(SESSION_COOKIE, "");
         if (sessionId.length() > 0) {
             StringBuilder builder = new StringBuilder();
@@ -447,42 +430,31 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             }
             headers.put(COOKIE_KEY, builder.toString());
         }
-
     }
+
 
     public static class ParamedStringRequest extends StringRequest {
         Context context;
-
 
         public ParamedStringRequest(Context context, int method, String url, Response.Listener<String> listener, Response.ErrorListener errorListener) {
             super(method, url, listener, errorListener);
             this.context = context;
         }
 
-
         @Override
         protected Map<String, String> getParams() throws AuthFailureError {
-            return getParams();
+            Map<String, String> params = new HashMap<String, String>();
+            return params;
         }
 
         @Override
-        protected Response<String> parseNetworkResponse(NetworkResponse response) {
-            ((MainActivity) context).saveSessionCookie(response.headers);
-            return super.parseNetworkResponse(response);
-        }
-
-        @Override
-        public Map<String, String> getHeaders() throws AuthFailureError {
+        public Map<String, String> getHeaders() throws AuthFailureError { //outgoing, set cookie TO server here
             Map<String, String> headers = super.getHeaders();
-
-            if (headers == null
-                    || headers.equals(Collections.emptyMap())) {
+            if (headers == null || headers.equals(Collections.emptyMap())) {
                 headers = new HashMap<String, String>();
             }
-
             ((MainActivity) context).addSessionCookie(headers);
             return headers;
         }
     }
-
 }
