@@ -34,5 +34,10 @@
         android:orderInCategory="104"
         android:showAsAction="never" />
 
+    <item
+        android:id="@+id/action_login"
+        android:title="@string/login"
+        android:orderInCategory="105"
+        android:showAsAction="never" />
 
 </menu>

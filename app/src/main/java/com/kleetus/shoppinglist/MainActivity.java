@@ -39,6 +39,13 @@ import uk.co.senab.actionbarpulltorefresh.library.ActionBarPullToRefresh;
 import uk.co.senab.actionbarpulltorefresh.library.PullToRefreshLayout;
 import uk.co.senab.actionbarpulltorefresh.library.listeners.OnRefreshListener;
 
+//pseudo code
+//launch app
+//check for logged in status
+//if logged in, get shopping list, right away
+//if not logged in, present login window, keep log in window until logged in
+
+
 public class MainActivity extends ListActivity implements OnRefreshListener {
     public RequestQueue queue;
     private Gson gson;
@@ -51,6 +58,8 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     private Item[] EMPTY = {};
     private boolean isRefreshing;
     private SharedPreferences preferences;
+    private boolean isLoggedIn = false;
+    private String session;
 
     private static final String SET_COOKIE_KEY = "Set-Cookie";
     private static final String COOKIE_KEY = "Cookie";
@@ -66,16 +75,38 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         mainFrame = (FrameLayout) MainActivity.this.findViewById(R.id.container);
         checkedItems = new ArrayList<Integer>();
         progress = (MainActivity.this.getLayoutInflater()).inflate(R.layout.progress, null);
-        getCreds(getString(R.string.userpass));
         mPullToRefreshLayout = (PullToRefreshLayout) findViewById(R.id.ptr_layout);
+
         adapter = new ShoppingListAdapter(this, R.layout.row, EMPTY);
         setListAdapter(adapter);
+
         preferences = PreferenceManager.getDefaultSharedPreferences(this);
 
         ActionBarPullToRefresh.from(this)
                 .allChildrenArePullable()
                 .listener(this)
                 .setup(mPullToRefreshLayout);
+
+        setSession();
+        if(!isLoggedIn) {
+            getCreds(getString(R.string.userpass));
+        }
+        else {
+            getShoppingList();
+        }
+
+    }
+
+    private void setSession() {
+        String sessionId = preferences.getString(SESSION_COOKIE, "");
+        if (sessionId.length() > 0) {
+            StringBuilder builder = new StringBuilder();
+            builder.append(SESSION_COOKIE);
+            builder.append("=");
+            builder.append(sessionId);
+            session = builder.toString();
+            isLoggedIn = true;
+        }
     }
 
     private void getCreds(String message) {
@@ -89,6 +120,8 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             public void onClick(View v) {
                 username = ((EditText) credsDialog.findViewById(R.id.username)).getText().toString();
                 String password = ((EditText) credsDialog.findViewById(R.id.password)).getText().toString();
+                showProgress();
+                credsDialog.hide();
                 auth(username, password, credsDialog);
             }
         });
@@ -107,12 +140,17 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         StringRequest request = new ParamedStringRequest(this, Request.Method.POST, MainApplication.server + "session", new Response.Listener<String>() {
             @Override
             public void onResponse(String s) {
+                hideProgress();
                 dialog.hide();
                 Log.d("MainActivity", "Logged in successfully");
+                isLoggedIn = true;
+                getShoppingList();
             }
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError volleyError) {
+                hideProgress();
+                dialog.show();
                 dialog.setTitle("re-enter user/pass");
             }
         }
@@ -126,7 +164,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             }
 
             @Override
-            protected Response<String> parseNetworkResponse(NetworkResponse response) { //incoming from server here, set cookie in user prefs here
+            protected Response<String> parseNetworkResponse(NetworkResponse response) { //incoming from server here, set cookie in user  here
                 saveSessionCookie(response.headers);
                 return super.parseNetworkResponse(response);
             }
@@ -171,6 +209,14 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     }
 
     @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        super.onPrepareOptionsMenu(menu);
+        menu.findItem(R.id.action_login).setVisible(!isLoggedIn);
+        menu.findItem(R.id.action_logout).setVisible(isLoggedIn);
+        return true;
+    }
+
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.action_add) {
@@ -188,11 +234,22 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         if (id == R.id.action_logout) {
             logout();
         }
+        if (id == R.id.action_login) {
+            getCreds(getString(R.string.userpass));
+        }
         return super.onOptionsItemSelected(item);
     }
 
     private void logout() {
         Toast.makeText(this, username + " " + getString(R.string.isLoggedOut), Toast.LENGTH_LONG).show();
+        isLoggedIn = false;
+        removeSession();
+    }
+
+    private void removeSession() {
+        SharedPreferences.Editor prefEditor = preferences.edit();
+        prefEditor.remove(SESSION_COOKIE);
+        prefEditor.commit();
     }
 
     private void linkAccount() {
@@ -218,6 +275,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     }
 
     private void clearCheckedList() {
+        if(!isLoggedIn) {getCreds(getString(R.string.userpass));}
         getCheckedItems();
         if (checkedItems.size() < 1) {
             Toast.makeText(this, "No items were selected.", Toast.LENGTH_LONG).show();
@@ -283,6 +341,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     }
 
     private void addItem() {
+        if(!isLoggedIn) {getCreds(getString(R.string.userpass));}
         final Dialog addDialog = new Dialog(this);
         addDialog.setContentView(R.layout.add_dialog);
         addDialog.setTitle("Add Item");
@@ -343,6 +402,8 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     }
 
     private void getShoppingList() {
+        if(!isLoggedIn) {getCreds(getString(R.string.userpass));}
+
         if (isRefreshing) {
             return;
         }
@@ -418,17 +479,8 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     }
 
     private void addSessionCookie(Map<String, String> headers) {
-        String sessionId = preferences.getString(SESSION_COOKIE, "");
-        if (sessionId.length() > 0) {
-            StringBuilder builder = new StringBuilder();
-            builder.append(SESSION_COOKIE);
-            builder.append("=");
-            builder.append(sessionId);
-            if (headers.containsKey(COOKIE_KEY)) {
-                builder.append("; ");
-                builder.append(headers.get(COOKIE_KEY));
-            }
-            headers.put(COOKIE_KEY, builder.toString());
+        if(isLoggedIn) {
+            headers.put(COOKIE_KEY, session);
         }
     }
 

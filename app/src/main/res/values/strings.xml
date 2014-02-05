@@ -19,5 +19,6 @@
     <string name="bad_userpass">bad username/pass</string>
     <string name="logout">Logout</string>
     <string name="isLoggedOut">is logged out.</string>
+    <string name="login">Login</string>
 
 </resources>
