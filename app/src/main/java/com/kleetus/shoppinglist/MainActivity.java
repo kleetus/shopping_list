@@ -39,12 +39,6 @@ import uk.co.senab.actionbarpulltorefresh.library.ActionBarPullToRefresh;
 import uk.co.senab.actionbarpulltorefresh.library.PullToRefreshLayout;
 import uk.co.senab.actionbarpulltorefresh.library.listeners.OnRefreshListener;
 
-//pseudo code
-//launch app
-//check for logged in status
-//if logged in, get shopping list, right away
-//if not logged in, present login window, keep log in window until logged in
-
 
 public class MainActivity extends ListActivity implements OnRefreshListener {
     public RequestQueue queue;
@@ -64,6 +58,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     private static final String SET_COOKIE_KEY = "Set-Cookie";
     private static final String COOKIE_KEY = "Cookie";
     private static final String SESSION_COOKIE = "rack.session";
+    private static final String USERNAME = "username";
 
 
     @Override
@@ -76,11 +71,11 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         checkedItems = new ArrayList<Integer>();
         progress = (MainActivity.this.getLayoutInflater()).inflate(R.layout.progress, null);
         mPullToRefreshLayout = (PullToRefreshLayout) findViewById(R.id.ptr_layout);
+        preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        username = getUsername();
 
         adapter = new ShoppingListAdapter(this, R.layout.row, EMPTY);
         setListAdapter(adapter);
-
-        preferences = PreferenceManager.getDefaultSharedPreferences(this);
 
         ActionBarPullToRefresh.from(this)
                 .allChildrenArePullable()
@@ -88,10 +83,10 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
                 .setup(mPullToRefreshLayout);
 
         setSession();
-        if(!isLoggedIn) {
+
+        if (!isLoggedIn) {
             getCreds(getString(R.string.userpass));
-        }
-        else {
+        } else {
             getShoppingList();
         }
 
@@ -112,17 +107,20 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     private void getCreds(String message) {
         final Dialog credsDialog = new Dialog(this);
         credsDialog.setContentView(R.layout.auth);
+        final EditText username_field = (EditText)credsDialog.findViewById(R.id.username);
+        if(null != this.username) {
+            username_field.setText(this.username);
+        }
         credsDialog.setTitle(message);
         credsDialog.setCancelable(false);
         Button submit = ((Button) credsDialog.findViewById(R.id.auth_submit));
         submit.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                username = ((EditText) credsDialog.findViewById(R.id.username)).getText().toString();
                 String password = ((EditText) credsDialog.findViewById(R.id.password)).getText().toString();
                 showProgress();
                 credsDialog.hide();
-                auth(username, password, credsDialog);
+                auth(username_field.getText().toString(), password, credsDialog);
             }
         });
         Button createAccount = (Button) credsDialog.findViewById(R.id.new_account);
@@ -145,6 +143,8 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
                 Log.d("MainActivity", "Logged in successfully");
                 isLoggedIn = true;
                 getShoppingList();
+                setUsername();
+                MainActivity.this.username = u;
             }
         }, new Response.ErrorListener() {
             @Override
@@ -172,6 +172,13 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         };
         queue.add(request);
     }
+
+    private void setUsername() {
+        SharedPreferences.Editor prefEditor = preferences.edit();
+        prefEditor.putString(USERNAME, username);
+        prefEditor.commit();
+    }
+
 
     private void launchNewAccountDialog() {
         final Dialog newAccountDialog = new Dialog(this);
@@ -241,7 +248,7 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
     }
 
     private void logout() {
-        Toast.makeText(this, username + " " + getString(R.string.isLoggedOut), Toast.LENGTH_LONG).show();
+        Toast.makeText(this, this.username + " " + getString(R.string.isLoggedOut), Toast.LENGTH_LONG).show();
         isLoggedIn = false;
         removeSession();
     }
@@ -452,6 +459,10 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
         mPullToRefreshLayout.setRefreshComplete();
     }
 
+    public String getUsername() {
+        return preferences.getString(USERNAME, null);
+    }
+
     public static class Item {
 
         public String item;
@@ -469,11 +480,11 @@ public class MainActivity extends ListActivity implements OnRefreshListener {
             String cookie = headers.get(SET_COOKIE_KEY);
             if (cookie.length() > 0) {
                 String[] splitCookie = cookie.split(";");
-                String[] splitSessionId = splitCookie[0].split("=");
-                cookie = splitSessionId[1];
+                cookie = splitCookie[0];
                 SharedPreferences.Editor prefEditor = preferences.edit();
                 prefEditor.putString(SESSION_COOKIE, cookie);
                 prefEditor.commit();
+                this.session = cookie;
             }
         }
     }
